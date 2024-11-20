@@ -14,6 +14,7 @@ Librería con herramientas y clases auxiliares necesarias para la representació
 
 Complétese esta descripción según las funcionalidades agregadas por el grupo.
 """
+print('hola')
 
 import osmnx as ox
 import networkx as nx
