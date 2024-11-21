@@ -179,7 +179,10 @@ def carga_grafo() -> nx.DiGraph:
     grafo_dirigido.remove_edges_from(nx.selfloop_edges(grafo_dirigido))
     
     # Pintar el grafo
-    ox.plot_graph(grafo_dirigido, node_size=0, edge_linewidth=0.5)
+    if len(grafo_dirigido.edges) > 0:
+        ox.plot_graph(grafo_dirigido, node_size=0, edge_linewidth=0.5)
+    else:
+        print('El grafo no tiene bordes para pintar.')
     
     return grafo_dirigido
 
