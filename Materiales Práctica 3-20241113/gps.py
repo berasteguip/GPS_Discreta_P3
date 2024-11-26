@@ -36,7 +36,7 @@ def closest_node(coords: Tuple[int, int], G) -> Tuple[int, int]:
             min_distance = distance
             closest_node_id = node_id
 
-    return closest_node_id
+    return G.nodes[closest_node_id]
 
 def choose():
     options = ['1', '2' ,'3']
