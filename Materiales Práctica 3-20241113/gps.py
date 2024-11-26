@@ -36,7 +36,7 @@ def closest_node(coords: Tuple[int, int], G) -> Tuple[int, int]:
             min_distance = distance
             closest_node_id = node_id
 
-    return G.nodes[closest_node_id]
+    return closest_node_id
 
 def choose():
     options = ['1', '2' ,'3']
@@ -61,14 +61,16 @@ if __name__ == "__main__":
     callejero = ca.carga_callejero()
     G = ca.carga_grafo()
 
-    origin_str = input('¿De dónde quiere salir? ')
+    #origin_str = input('¿De dónde quiere salir? ')
+    origin_str = 'Calle Río Bullaque, 4'
     try:
         origin = ca.busca_direccion(origin_str, callejero)
         origin = closest_node(origin, G)
     except Exception as error:
         print(error)
 
-    dest_str = input('¿A dónde quiere ir? ')
+    #dest_str = input('¿A dónde quiere ir? ')
+    dest_str = "Calle de Alberto Aguilera, 25"
     try:
         dest = ca.busca_direccion(dest_str, callejero)
         dest = closest_node(dest, G)

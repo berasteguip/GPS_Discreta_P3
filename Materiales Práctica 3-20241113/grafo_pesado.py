@@ -29,7 +29,7 @@ def peso_longitud(grafo:nx.Graph, vertice_0: int, vertice_1: int) -> int:
 
 def peso_velocidad(grafo:nx.Graph, vertice_0: int, vertice_1: int) -> int:
 
-    speed = grafo[vertice_0][vertice_1]['maxspeed']
+    speed = float(grafo[vertice_0][vertice_1]['maxspeed'])
     distancia = grafo[vertice_0][vertice_1]['length']
     return distancia / speed
 
@@ -87,7 +87,7 @@ def dijkstra(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,object
     return padres
 
 
-def camino_minimo(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,object,object],float], Callable[[nx.DiGraph,object,object],float]] ,origen:object,destino:object)->List[object]:
+def camino_minimo(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,object,object],float], Callable[[nx.DiGraph,object,object],float]] , origen:object, destino:object)->List[object]:
     """ Calcula el camino mínimo desde el vértice origen hasta el vértice
     destino utilizando el algoritmo de Dijkstra.
     

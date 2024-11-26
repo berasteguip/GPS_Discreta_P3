@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from typing import Tuple
 from Levenshtein import distance as string_distance
 
-MAX_DISTANCE = 0.15     # Encontrar distancia máxima ideal
+MAX_DISTANCE = 0.4     # Encontrar distancia máxima ideal
 
 STREET_FILE_NAME="direcciones.csv"
 
@@ -204,8 +204,8 @@ def procesa_grafo(multidigrafo:nx.MultiDiGraph) -> nx.DiGraph:
         if 'maxspeed' in edge:
             if type(edge['maxspeed']) == list:
                 edge['maxspeed'] = max(edge['maxspeed'])    # Cogemos el máximo de las velocidades que figuran de manera arbitraria
-            elif '/' in edge['maxspeed']:
-                edge['maxspeed'] = max(edge['maxspeed'].split('/')) # Cogemos el máximo de las velocidades que figuran de manera arbitraria
+            elif '|' in edge['maxspeed']:
+                edge['maxspeed'] = max(edge['maxspeed'].split('|')) # Cogemos el máximo de las velocidades que figuran de manera arbitraria
         else:
             edge['maxspeed'] = MAX_SPEEDS[edge['highway']]
 
