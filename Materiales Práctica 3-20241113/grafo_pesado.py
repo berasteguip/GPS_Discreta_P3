@@ -116,7 +116,6 @@ def camino_minimo(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,o
     camino.reverse()  # Invertir el camino para que vaya de origen a destino
     return camino
 
-
 def prim(G:nx.Graph, peso:Callable[[nx.Graph,object,object],float])-> Dict[object,object]:
     """ Calcula un Árbol Abarcador Mínimo para el grafo pesado
     usando el algoritmo de Prim.

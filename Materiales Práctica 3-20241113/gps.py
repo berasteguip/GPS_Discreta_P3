@@ -1,7 +1,8 @@
 import callejero as ca
 import grafo_pesado as gp
-from typing import Tuple
+from typing import Tuple, List
 import math
+import networkx as nx
 from shapely.geometry import Point, LineString
 
 
@@ -56,6 +57,17 @@ def choose():
         return gp.peso_semaforo
 
 
+def instrucciones(camino: List[int], G: nx.DiGraph) -> List[str]:
+
+    instrucc = []
+    for i in range(len(camino) - 1):
+
+        edge = G[camino[i]][camino[i + 1]]
+        nombre = edge.get('name', 'Calle sin nombre')
+        instrucc.append(nombre)
+
+    return instrucc
+
 if __name__ == "__main__":
 
     callejero = ca.carga_callejero()
@@ -80,5 +92,6 @@ if __name__ == "__main__":
     peso = choose()
 
     minimo = gp.camino_minimo(G, peso, origin, dest)
-    print(minimo)
-
+    
+    instrucc = instrucciones(minimo, G)
+    print(instrucc)
