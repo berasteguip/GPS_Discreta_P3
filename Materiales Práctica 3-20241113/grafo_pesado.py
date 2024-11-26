@@ -16,30 +16,33 @@ Librería para el análisis de grafos pesados.
 from typing import List,Tuple,Dict,Callable,Union
 import networkx as nx
 import sys
-
+import callejero as ca
 import heapq #Librería para la creación de colas de prioridad
+
+WAIT = 30   # Segundos
+PROB = 0.8
 
 INFTY=sys.float_info.max #Distincia "infinita" entre nodos de un grafo
 
-"""
-En las siguientes funciones, las funciones de peso son funciones que reciben un grafo o digrafo y dos vértices y devuelven un real (su peso)
-Por ejemplo, si las aristas del grafo contienen en sus datos un campo llamado 'valor', una posible función de peso sería:
+def peso_longitud(grafo:nx.Graph, vertice_0: int, vertice_1: int) -> int:
+    return grafo[vertice_0][vertice_1]['length']
 
-def mi_peso(G:nx.Graph,u:object, v:object):
-    return G[u][v]['valor']
+def peso_velocidad(grafo:nx.Graph, vertice_0: int, vertice_1: int) -> int:
 
-y, en tal caso, para calcular Dijkstra con dicho parámetro haríamos
+    speed = grafo[vertice_0][vertice_1]['maxspeed']
+    distancia = grafo[vertice_0][vertice_1]['length']
+    return distancia / speed
 
-camino=dijkstra(G,mi_peso,origen, destino)
-
-
-"""
+def peso_semaforo(grafo:nx.Graph, vertice_0: int, vertice_1: int) -> int:
+    
+    speed = grafo[vertice_0][vertice_1]['maxspeed']
+    distancia = grafo[vertice_0][vertice_1]['length']
+    return distancia / speed + PROB*WAIT
 
 def dijkstra(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,object,object],float], Callable[[nx.DiGraph,object,object],float]], origen:object)-> Dict[object,object]:
     """ Calcula un Árbol de Caminos Mínimos para el grafo pesado partiendo
     del vértice "origen" usando el algoritmo de Dijkstra. Calcula únicamente
     el árbol de la componente conexa que contiene a "origen".
-    
     Args:
         origen (object): vértice del grafo de origen
     Returns:
@@ -51,7 +54,37 @@ def dijkstra(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,object
         Si G.dijksra(1)={2:1, 3:2, 4:1} entonces 1 es padre de 2 y de 4 y 2 es padre de 3.
         En particular, un camino mínimo desde 1 hasta 3 sería 1->2->3.
     """
-    pass
+
+    # Inicializar la cola de prioridad y el diccionario de padres
+    cola = []
+    padres = {nodo: None for nodo in G.nodes}
+    distancias = {nodo: INFTY for nodo in G.nodes}
+    distancias[origen] = 0
+
+    # Agregar el nodo de origen a la cola
+    heapq.heappush(cola, (0, origen))
+
+    while cola:
+        # Extraer el nodo con la distancia mínima
+        distancia_actual, nodo_actual = heapq.heappop(cola)
+
+        # Si la distancia actual es mayor que la registrada, continuar
+        if distancia_actual > distancias[nodo_actual]:
+            continue
+
+        # Iterar sobre los vecinos del nodo actual
+        for vecino in G.neighbors(nodo_actual):
+            # Calcular el peso de la arista
+            peso_arista = peso(G, nodo_actual, vecino)
+            nueva_distancia = distancias[nodo_actual] + peso_arista
+
+            # Si se encuentra una distancia más corta
+            if nueva_distancia < distancias[vecino]:
+                distancias[vecino] = nueva_distancia
+                padres[vecino] = nodo_actual
+                heapq.heappush(cola, (nueva_distancia, vecino))
+
+    return padres
 
 
 def camino_minimo(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,object,object],float], Callable[[nx.DiGraph,object,object],float]] ,origen:object,destino:object)->List[object]:
@@ -72,7 +105,16 @@ def camino_minimo(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,o
     Raises:
         TypeError: Si origen o destino no son "hashable".
     """
-    pass
+    padres = dijkstra(G, peso, origen)
+
+    camino = []
+    nodo_actual = destino
+    while nodo_actual is not None:
+        camino.append(nodo_actual)
+        nodo_actual = padres[nodo_actual]
+    
+    camino.reverse()  # Invertir el camino para que vaya de origen a destino
+    return camino
 
 
 def prim(G:nx.Graph, peso:Callable[[nx.Graph,object,object],float])-> Dict[object,object]:

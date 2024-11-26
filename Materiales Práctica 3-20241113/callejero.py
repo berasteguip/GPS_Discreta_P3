@@ -20,7 +20,7 @@ import networkx as nx
 import pandas as pd
 import regex as re
 import os
-
+import matplotlib.pyplot as plt
 from typing import Tuple
 from Levenshtein import distance as string_distance
 
@@ -44,7 +44,8 @@ MAX_SPEEDS={'living_street': '20',
  'tertiary_link':'50',
  'busway': '50',
  'motorway_link': '70',
- 'motorway': '100'}
+ 'motorway': '100',
+ 'other': '50'}
 
 
 class ServiceNotAvailableError(Exception):
@@ -83,6 +84,7 @@ def carga_callejero() -> pd.DataFrame:
         FileNotFoundError si el fichero csv con las direcciones no existe
     """
     try:
+        print(f'Leyendo el callejero de Madrid...')
         callejero = pd.read_csv('direcciones.csv', encoding='latin1', sep=';')
     except FileNotFoundError:
         raise FileNotFoundError("El fichero csv con las direcciones no existe")
@@ -137,11 +139,9 @@ def busca_direccion(direccion:str, callejero:pd.DataFrame) -> Tuple[float,float]
         callejero_dist = callejero_dist.sort_values(by='DISTANCIA', ascending=True).reset_index()
         
         closest = callejero_dist.iloc[0]
-        print(closest['DISTANCIA'])
         if closest['DISTANCIA'] > MAX_DISTANCE:
             raise AdressNotFoundError('La dirección proporcionada no es correcta.')
         else:
-            print(closest['NOMBRE_COMPLETO'])
             lat = closest['FLOAT_LATITUD']
             long = closest['FLOAT_LONGITUD']
             return lat, long
@@ -164,25 +164,17 @@ def carga_grafo() -> nx.DiGraph:
     
     if os.path.exists(graph_file):
         # Cargar el grafo desde el archivo
+        print(f'Cargando grafo de Madrid desde "{graph_file}"...')
         grafo = ox.load_graphml(graph_file)
     else:
         # Descargar el grafo de OpenStreetMap
+        print('Descargando grafo de Madrid...')
         grafo = ox.graph_from_place("Madrid, Spain", network_type='drive')
 
         # Guardar el grafo en un archivo
         ox.save_graphml(grafo, graph_file)
     
-    # Convertir el multidigrafo en un grafo dirigido
-    grafo_dirigido = ox.convert.to_digraph(grafo)
-    
-    # Eliminar bucles
-    grafo_dirigido.remove_edges_from(nx.selfloop_edges(grafo_dirigido))
-    
-    # Pintar el grafo
-    if len(grafo_dirigido.edges) > 0:
-        ox.plot_graph(grafo_dirigido, node_size=0, edge_linewidth=0.5)
-    else:
-        print('El grafo no tiene bordes para pintar.')
+    grafo_dirigido = procesa_grafo(grafo)
     
     return grafo_dirigido
 
@@ -195,4 +187,38 @@ def procesa_grafo(multidigrafo:nx.MultiDiGraph) -> nx.DiGraph:
         nx.DiGraph: Grafo dirigido y sin bucles asociado al multidigrafo dado.
     Raises: None
     """
-    pass
+
+    # Convertir el multidigrafo en un grafo dirigido
+    grafo_dirigido = ox.convert.to_digraph(multidigrafo)
+    
+    # Eliminar bucles
+    loops = list(nx.selfloop_edges(grafo_dirigido))
+    grafo_dirigido.remove_edges_from(loops)
+
+    for n0, n1, edge in grafo_dirigido.edges(data=True):
+        if 'highway' in edge:
+            if type(edge['highway']) == list:
+                edge['highway'] = edge['highway'][0]    # Cuando una calle tiene más de un tipo de vía cogemos el primero arbitrariamente.
+        else:
+            edge['highway'] = 'other'
+        if 'maxspeed' in edge:
+            if type(edge['maxspeed']) == list:
+                edge['maxspeed'] = max(edge['maxspeed'])    # Cogemos el máximo de las velocidades que figuran de manera arbitraria
+            elif '/' in edge['maxspeed']:
+                edge['maxspeed'] = max(edge['maxspeed'].split('/')) # Cogemos el máximo de las velocidades que figuran de manera arbitraria
+        else:
+            edge['maxspeed'] = MAX_SPEEDS[edge['highway']]
+
+    return grafo_dirigido
+
+def show_grafo(grafo: nx.DiGraph) -> None:
+    pos = {node: (data['x'], data['y']) for node, data in grafo.nodes(data=True)}
+
+    plt.figure(figsize=(12, 12))
+
+    nx.draw_networkx_nodes(grafo, pos, node_size=0.5, node_color='blue')
+    nx.draw_networkx_edges(grafo, pos, arrowstyle='->', arrowsize=5, edge_color='gray', width=0.2)
+
+    plt.title('Grafo Dirigido de las Calles de Madrid')
+    plt.axis('off')
+    plt.show()
