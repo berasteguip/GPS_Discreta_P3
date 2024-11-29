@@ -12,41 +12,20 @@ Integrantes:
 Descripción:
 Librería con herramientas y clases auxiliares necesarias para la representación de un callejero en un grafo.
 
-Complétese esta descripción según las funcionalidades agregadas por el grupo.
+Funciones adicionales:
+- coord_to_float(): Convierte una coordenada en formato de grados, minutos y segundos a un valor decimal en formato de punto flotante.
+- calcular_similitud(): Calcula la similitud entre dos cadenas de texto utilizando una métrica de similitud.
+- distancia(): Calcula la distancia entre dos puntos geográficos dados por sus coordenadas.
 """
 
-import osmnx as ox
-import networkx as nx
+from constants import *
 import pandas as pd
-import regex as re
-import os
-import matplotlib.pyplot as plt
+import re
+import rapidfuzz as fuzz
 from typing import Tuple
-from Levenshtein import distance as string_distance
-
-MAX_DISTANCE = 0.4     # Encontrar distancia máxima ideal
-
-STREET_FILE_NAME="direcciones.csv"
-
-PLACE_NAME = "Madrid, Spain"
-MAP_FILE_NAME="madrid.graphml"
-
-MAX_SPEEDS={'living_street': '20',
- 'residential': '30',
- 'primary_link': '40',
- 'unclassified': '40',
- 'secondary_link': '40',
- 'trunk_link': '40',
- 'secondary': '50',
- 'tertiary': '50',
- 'primary': '50',
- 'trunk': '50',
- 'tertiary_link':'50',
- 'busway': '50',
- 'motorway_link': '70',
- 'motorway': '100',
- 'other': '50'}
-
+import osmnx as ox
+import os
+import networkx as nx
 
 class ServiceNotAvailableError(Exception):
     "Excepción que indica que la navegación no está disponible en este momento"
@@ -59,8 +38,6 @@ class AdressNotFoundError(Exception):
 
 
 ############## Parte 2 ##############
-
-SIGNS = {'W': '-', 'E': '+', 'S': '-', 'N': '+'}
 
 def coord_to_float(coordinate: str) -> float:
     pattern = re.compile(r"([\d]+)°([\d]+)?'?(\d+(?:\.\d+)?)?'' ?([NSEW])")
@@ -84,7 +61,7 @@ def carga_callejero() -> pd.DataFrame:
         FileNotFoundError si el fichero csv con las direcciones no existe
     """
     try:
-        print(f'Leyendo el callejero de Madrid...')
+        print('· Leyendo el callejero de Madrid...')
         callejero = pd.read_csv('direcciones.csv', encoding='latin1', sep=';')
     except FileNotFoundError:
         raise FileNotFoundError("El fichero csv con las direcciones no existe")
@@ -102,11 +79,30 @@ def carga_callejero() -> pd.DataFrame:
     callejero['NOMBRE_COMPLETO'] = callejero['VIA_CLASE'] + " " + callejero['VIA_PAR'] + callejero['VIA_NOMBRE'] + ", " + callejero['NUMERO'].astype(str)
     return callejero
 
+def calcular_similitud(entrada, valor_columna):
+    # Normaliza ambos textos (opcional, según tus datos)
+    entrada_normalizada = entrada.strip().lower()
+    valor_normalizado = valor_columna.strip().lower()
+    # Calcula la similitud con la métrica que prefieras (ejemplo: ratio simple)
+    return fuzz.ratio(entrada_normalizada, valor_normalizado)
 
-def distancia(calle_pedida, calle_iter):
-    VALOR = 0.7 # recortaremos todos los cambios que sean mayores que este valor
-    distancia = min(string_distance(calle_pedida.lower(), calle_iter.lower())/len(calle_pedida), VALOR)
-    return distancia
+
+def distancia(calle_pedida: str, calle_iter: str) -> float:
+    """
+    Calcula la distancia de edición normalizada entre dos nombres de calles.
+
+    Args:
+        calle_pedida (str): Nombre de la calle que se está buscando.
+        calle_iter (str): Nombre de la calle con la que se compara.
+
+    Returns:
+        float: Distancia de edición normalizada entre las dos cadenas, truncada a un valor máximo de 0.7.
+               Un valor más bajo indica mayor similitud entre las cadenas.
+    """
+    entrada_normalizada = calle_pedida.strip().lower()
+    valor_normalizado = calle_iter.strip().lower()
+    # Calcula la similitud con la métrica que prefieras (ejemplo: ratio simple)
+    return fuzz.ratio(entrada_normalizada, valor_normalizado)
 
 def busca_direccion(direccion:str, callejero:pd.DataFrame) -> Tuple[float,float]:
     """ Función que busca una dirección, dada en el formato
@@ -128,18 +124,17 @@ def busca_direccion(direccion:str, callejero:pd.DataFrame) -> Tuple[float,float]
 
     direccion = direccion.upper()
     if direccion in callejero['NOMBRE_COMPLETO'].unique():
-        
         lat = callejero.loc[callejero['NOMBRE_COMPLETO'] == direccion,'FLOAT_LATITUD'].values[0]
         long = callejero.loc[callejero['NOMBRE_COMPLETO'] == direccion,'FLOAT_LONGITUD'].values[0]
         return lat, long
 
     else:
-        callejero_dist = callejero.copy()
-        callejero_dist['DISTANCIA'] = callejero_dist['NOMBRE_COMPLETO'].apply( lambda x: distancia(direccion, x))
-        callejero_dist = callejero_dist.sort_values(by='DISTANCIA', ascending=True).reset_index()
+        callejero_sim = callejero.copy()
+        callejero_sim['SIMILITUD'] = callejero_sim['NOMBRE_COMPLETO'].apply( lambda x: distancia(direccion, x))
+        callejero_sim = callejero_sim.sort_values(by='SIMILITUD', ascending=False).reset_index()
         
-        closest = callejero_dist.iloc[0]
-        if closest['DISTANCIA'] > MAX_DISTANCE:
+        closest = callejero_sim.iloc[0]
+        if closest['SIMILITUD'] < MIN_SIMILITUD:
             raise AdressNotFoundError('La dirección proporcionada no es correcta.')
         else:
             lat = closest['FLOAT_LATITUD']
@@ -159,20 +154,25 @@ def carga_grafo() -> nx.DiGraph:
     Raises:
         ServiceNotAvailableError: Si no es posible recuperar el grafo de OpenStreetMap.
     """
-
     graph_file = "madrid.graphml"
     
     if os.path.exists(graph_file):
-        # Cargar el grafo desde el archivo
-        print(f'Cargando grafo de Madrid desde "{graph_file}"...')
-        grafo = ox.load_graphml(graph_file)
+        try:
+            # Cargar el grafo desde el archivo
+            print(f'· Cargando grafo de Madrid desde "{graph_file}"...')
+            grafo = ox.load_graphml(graph_file)
+        except Exception:
+            raise ServiceNotAvailableError("No se pudo cargar el grafo desde el archivo")
     else:
-        # Descargar el grafo de OpenStreetMap
-        print('Descargando grafo de Madrid...')
-        grafo = ox.graph_from_place("Madrid, Spain", network_type='drive')
+        try:
+            # Descargar el grafo de OpenStreetMap
+            print('· Descargando grafo de Madrid...')
+            grafo = ox.graph_from_place("Madrid, Spain", network_type='drive')
 
-        # Guardar el grafo en un archivo
-        ox.save_graphml(grafo, graph_file)
+            # Guardar el grafo en un archivo
+            ox.save_graphml(grafo, graph_file)
+        except Exception:
+            raise ServiceNotAvailableError("No se pudo descargar el grafo de OpenStreetMap")
     
     grafo_dirigido = procesa_grafo(grafo)
     
@@ -184,10 +184,9 @@ def procesa_grafo(multidigrafo:nx.MultiDiGraph) -> nx.DiGraph:
     Args:
         multidigrafo: multidigrafo de las calles de Madrid obtenido de OpenStreetMap.
     Returns:
-        nx.DiGraph: Grafo dirigido y sin bucles asociado al multidigrafo dado.
+        nx.DiGraph: Grafo con valores limpios, dirigido y sin bucles asociado al multidigrafo dado.
     Raises: None
     """
-
     # Convertir el multidigrafo en un grafo dirigido
     grafo_dirigido = ox.convert.to_digraph(multidigrafo)
     
@@ -196,11 +195,15 @@ def procesa_grafo(multidigrafo:nx.MultiDiGraph) -> nx.DiGraph:
     grafo_dirigido.remove_edges_from(loops)
 
     for n0, n1, edge in grafo_dirigido.edges(data=True):
+        
+        # Corrección del tipo de vía
         if 'highway' in edge:
             if type(edge['highway']) == list:
                 edge['highway'] = edge['highway'][0]    # Cuando una calle tiene más de un tipo de vía cogemos el primero arbitrariamente.
         else:
             edge['highway'] = 'other'
+
+        # Corrección de la velocidad de la vía
         if 'maxspeed' in edge:
             if type(edge['maxspeed']) == list:
                 edge['maxspeed'] = max(edge['maxspeed'])    # Cogemos el máximo de las velocidades que figuran de manera arbitraria
@@ -208,17 +211,14 @@ def procesa_grafo(multidigrafo:nx.MultiDiGraph) -> nx.DiGraph:
                 edge['maxspeed'] = max(edge['maxspeed'].split('|')) # Cogemos el máximo de las velocidades que figuran de manera arbitraria
         else:
             edge['maxspeed'] = MAX_SPEEDS[edge['highway']]
+        edge['maxspeed'] = float(edge['maxspeed']) / 3.6   # De km/h a m/s
+
+        # Corrección del nombre de la calle
+        if 'name' in edge:
+            if type(edge['name']) == list:
+                edge['name'] = edge['name'][0]  # De manera arbitraria cogemos el primer elemento, ya que la calle se puede llamar de ambas formas
+        else:
+            edge['name'] = 'Calle sin nombre'
+        edge['length'] = round(edge['length'])
 
     return grafo_dirigido
-
-def show_grafo(grafo: nx.DiGraph) -> None:
-    pos = {node: (data['x'], data['y']) for node, data in grafo.nodes(data=True)}
-
-    plt.figure(figsize=(12, 12))
-
-    nx.draw_networkx_nodes(grafo, pos, node_size=0.5, node_color='blue')
-    nx.draw_networkx_edges(grafo, pos, arrowstyle='->', arrowsize=5, edge_color='gray', width=0.2)
-
-    plt.title('Grafo Dirigido de las Calles de Madrid')
-    plt.axis('off')
-    plt.show()

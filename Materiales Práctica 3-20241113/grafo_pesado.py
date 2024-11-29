@@ -1,5 +1,5 @@
 """
-grafo.py
+grafo_pesado.py
 
 Matemática Discreta - IMAT
 ICAI, Universidad Pontificia Comillas
@@ -13,31 +13,57 @@ Descripción:
 Librería para el análisis de grafos pesados.
 """
 
-from typing import List,Tuple,Dict,Callable,Union
+from clases import Prioridad
+from constants import *
 import networkx as nx
-import sys
-import callejero as ca
-import heapq #Librería para la creación de colas de prioridad
+import heapq
+from typing import Union, Callable, List, Tuple, Dict
 
-WAIT = 30   # Segundos
-PROB = 0.8
+def peso_longitud(grafo: nx.Graph, vertice_0: int, vertice_1: int) -> int:
+    """
+    Calcula el peso de una arista basado en su longitud.
 
-INFTY=sys.float_info.max #Distincia "infinita" entre nodos de un grafo
+    Args:
+        grafo (nx.Graph): El grafo que contiene la arista.
+        vertice_0 (int): El primer vértice de la arista.
+        vertice_1 (int): El segundo vértice de la arista.
 
-def peso_longitud(grafo:nx.Graph, vertice_0: int, vertice_1: int) -> int:
+    Returns:
+        int: La longitud de la arista entre vertice_0 y vertice_1.
+    """
     return grafo[vertice_0][vertice_1]['length']
 
-def peso_velocidad(grafo:nx.Graph, vertice_0: int, vertice_1: int) -> int:
+def peso_velocidad(grafo: nx.Graph, vertice_0: int, vertice_1: int) -> float:
+    """
+    Calcula el peso de una arista basado en el tiempo de viaje sin considerar semáforos.
 
-    speed = float(grafo[vertice_0][vertice_1]['maxspeed'])
+    Args:
+        grafo (nx.Graph): El grafo que contiene la arista.
+        vertice_0 (int): El primer vértice de la arista.
+        vertice_1 (int): El segundo vértice de la arista.
+
+    Returns:
+        float: El tiempo de viaje entre vertice_0 y vertice_1 en segundos.
+    """
+    speed = grafo[vertice_0][vertice_1]['maxspeed']
     distancia = grafo[vertice_0][vertice_1]['length']
     return distancia / speed
 
-def peso_semaforo(grafo:nx.Graph, vertice_0: int, vertice_1: int) -> int:
-    
+def peso_semaforo(grafo: nx.Graph, vertice_0: int, vertice_1: int) -> float:
+    """
+    Calcula el peso de una arista considerando el tiempo de viaje y la probabilidad de encontrar un semáforo.
+
+    Args:
+        grafo (nx.Graph): El grafo que contiene la arista.
+        vertice_0 (int): El primer vértice de la arista.
+        vertice_1 (int): El segundo vértice de la arista.
+
+    Returns:
+        float: El tiempo de viaje estimado entre vertice_0 y vertice_1 en segundos, incluyendo posibles paradas en semáforos.
+    """
     speed = grafo[vertice_0][vertice_1]['maxspeed']
     distancia = grafo[vertice_0][vertice_1]['length']
-    return distancia / speed + PROB*WAIT
+    return distancia / speed + PROB * WAIT
 
 def dijkstra(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,object,object],float], Callable[[nx.DiGraph,object,object],float]], origen:object)-> Dict[object,object]:
     """ Calcula un Árbol de Caminos Mínimos para el grafo pesado partiendo
@@ -60,29 +86,26 @@ def dijkstra(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,object
     padres = {nodo: None for nodo in G.nodes}
     distancias = {nodo: INFTY for nodo in G.nodes}
     distancias[origen] = 0
-
     # Agregar el nodo de origen a la cola
-    heapq.heappush(cola, (0, origen))
-
+    heapq.heappush(cola, Prioridad(0, origen))
     while cola:
         # Extraer el nodo con la distancia mínima
-        distancia_actual, nodo_actual = heapq.heappop(cola)
-
+        nodo = heapq.heappop(cola)
+        distancia_actual = nodo.prioridad
+        nodo_actual = nodo.valor
         # Si la distancia actual es mayor que la registrada, continuar
-        if distancia_actual > distancias[nodo_actual]:
-            continue
+        if distancia_actual <= distancias[nodo_actual]:    
+            # Iterar sobre los vecinos del nodo actual
+            for vecino in G.neighbors(nodo_actual):
+                # Calcular el peso de la arista
+                peso_arista = peso(G, nodo_actual, vecino)
+                nueva_distancia = distancias[nodo_actual] + peso_arista
 
-        # Iterar sobre los vecinos del nodo actual
-        for vecino in G.neighbors(nodo_actual):
-            # Calcular el peso de la arista
-            peso_arista = peso(G, nodo_actual, vecino)
-            nueva_distancia = distancias[nodo_actual] + peso_arista
-
-            # Si se encuentra una distancia más corta
-            if nueva_distancia < distancias[vecino]:
-                distancias[vecino] = nueva_distancia
-                padres[vecino] = nodo_actual
-                heapq.heappush(cola, (nueva_distancia, vecino))
+                # Si se encuentra una distancia más corta
+                if nueva_distancia < distancias[vecino]:
+                    distancias[vecino] = nueva_distancia
+                    padres[vecino] = nodo_actual
+                    heapq.heappush(cola, Prioridad(nueva_distancia, vecino))
 
     return padres
 
@@ -133,7 +156,35 @@ def prim(G:nx.Graph, peso:Callable[[nx.Graph,object,object],float])-> Dict[objec
             1 es padre de 2 y de 4
             2 es padre de 3
     """
-    pass
+    nodo_inicial = next(iter(G.nodes))  # Seleccionar un nodo arbitrario como inicial
+    visitados = set()
+    padres = {nodo: None for nodo in G.nodes}
+
+    # Cola de prioridad para aristas (peso, nodo_origen, nodo_destino)
+    cola = []
+    for vecino in G.neighbors(nodo_inicial):
+        peso_arista = peso(G, nodo_inicial, vecino)
+        heapq.heappush(cola, Prioridad(peso_arista, (nodo_inicial, vecino)))
+
+    visitados.add(nodo_inicial)
+
+    while cola:
+        arista_min = heapq.heappop(cola)
+        peso_arista, (origen, destino) = arista_min.prioridad, arista_min.valor
+
+        if destino in visitados:
+            continue
+
+        visitados.add(destino)
+        padres[destino] = origen
+
+        for vecino in G.neighbors(destino):
+            if vecino not in visitados:
+                peso_arista = peso(G, destino, vecino)
+                heapq.heappush(cola, Prioridad(peso_arista, (destino, vecino)))
+
+    return padres
+
                 
 
 def kruskal(G:nx.Graph, peso:Callable[[nx.Graph,object,object],float])-> List[Tuple[object,object]]:
@@ -152,4 +203,38 @@ def kruskal(G:nx.Graph, peso:Callable[[nx.Graph,object,object],float])-> List[Tu
         En el ejemplo anterior en que prim(G,peso)={1:None, 2:1, 3:2, 4:1} podríamos tener, por ejemplo,
         kruskal(G,peso)=[(1,2),(1,4),(3,2)]
     """
-    pass
+    # Crear una lista de aristas con sus pesos
+    aristas = [
+        (peso(G, u, v), u, v)
+        for u, v in G.edges
+    ]
+    aristas.sort()  # Ordenar las aristas por peso
+
+    # Inicializar la estructura de conjuntos disjuntos
+    parent = {nodo: nodo for nodo in G.nodes}
+    rank = {nodo: 0 for nodo in G.nodes}
+
+    def find(nodo):
+        if parent[nodo] != nodo:
+            parent[nodo] = find(parent[nodo])  # Compresión de caminos
+        return parent[nodo]
+
+    def union(nodo1, nodo2):
+        raiz1, raiz2 = find(nodo1), find(nodo2)
+        if raiz1 != raiz2:
+            if rank[raiz1] > rank[raiz2]:
+                parent[raiz2] = raiz1
+            elif rank[raiz1] < rank[raiz2]:
+                parent[raiz1] = raiz2
+            else:
+                parent[raiz2] = raiz1
+                rank[raiz1] += 1
+
+    # Construir el MST
+    mst = []
+    for peso_arista, u, v in aristas:
+        if find(u) != find(v):  # Si no forman un ciclo
+            union(u, v)
+            mst.append((u, v))
+
+    return mst
