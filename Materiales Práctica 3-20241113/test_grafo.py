@@ -40,7 +40,7 @@ def peso_aleatorio(G:Union[nx.Graph, nx.DiGraph], origen:object, destino:object)
 
 
 #Listas de vértices y aristas del grafo
-dirigido = True
+dirigido = False
 vertices=[1,2,3,'a',5,6]
 aristas=[(1,2),(1,3),(1,'a'),(1,5),(2,'a'),(3,'a'),(3,5),(5,6)]
 

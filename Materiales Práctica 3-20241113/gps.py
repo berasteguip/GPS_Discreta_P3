@@ -17,7 +17,7 @@ import callejero as ca
 import grafo_pesado as gp
 from constants import *
 import networkx as nx
-from typing import Callable, Tuple, List, 
+from typing import Callable, Tuple, List
 import math
 from shapely.geometry import Point
 import matplotlib.pyplot as plt
@@ -189,7 +189,7 @@ def dibuja_camino(G: nx.DiGraph, camino:list):
     plt.title("Grafo dirigido de calles de Madrid")
     plt.show()
 
-def dibuja_camino_ciudad(G: nx.DiGraph, camino: List[int]) -> None:
+def dibuja_caminos_ciudad(G: nx.DiGraph, caminos: List[List[int]]) -> None:
     """
     Dibuja el grafo completo de la ciudad y resalta el camino especificado.
 
@@ -211,19 +211,28 @@ def dibuja_camino_ciudad(G: nx.DiGraph, camino: List[int]) -> None:
     nx.draw_networkx_nodes(G, pos, node_size=0.1, node_color='gray')
     nx.draw_networkx_edges(G, pos, arrowstyle='->', arrowsize=5, edge_color='gray', width=0.2)
 
-    # Dibujo del camino
-    camino_edges = list(zip(camino[:-1], camino[1:]))
-    nx.draw_networkx_nodes(G, pos, nodelist=camino, node_size=0.7, node_color='red')
-    nx.draw_networkx_edges(G, pos, edgelist=camino_edges, edge_color='red', width=2, style='solid')
-    # Dibujar puntos de origen y destino
-    nx.draw_networkx_nodes(G, pos, nodelist=[camino[0]], node_size=20, node_color='green', label='Origen')
-    nx.draw_networkx_nodes(G, pos, nodelist=[camino[-1]], node_size=20, node_color='blue', label='Destino')
+    nx.draw_networkx_nodes(G, pos, nodelist=[caminos[0][0]], node_size=20, node_color='green', label='Origen')
+
+    for camino in caminos:
+        # Dibujo del camino
+        camino_edges = list(zip(camino[:-1], camino[1:]))
+        nx.draw_networkx_nodes(G, pos, nodelist=camino, node_size=0.7, node_color='black')
+        nx.draw_networkx_edges(G, pos, edgelist=camino_edges, edge_color='black', width=2, style='solid')
+        # Dibujar puntos de origen y destino
+        if camino != caminos[-1]:
+            nx.draw_networkx_nodes(G, pos, nodelist=[camino[-1]], node_size=20, node_color='Blue', label='Parada')
+    
+    nx.draw_networkx_nodes(G, pos, nodelist=[caminos[-1][-1]], node_size=20, node_color='Red', label='Destino')
+    
     plt.legend()
     plt.title('Tu ruta')
     plt.axis('off')
 
+    caminos_combined = []
+    for camino in caminos:
+        caminos_combined.extend(camino)
     # Ajustar los límites del gráfico para ampliar la vista de la ruta
-    x_values, y_values = zip(*[pos[node] for node in camino])
+    x_values, y_values = zip(*[pos[node] for node in caminos_combined])
     plt.xlim(min(x_values) - 0.01, max(x_values) + 0.01)
     plt.ylim(min(y_values) - 0.01, max(y_values) + 0.01)
 
@@ -236,10 +245,22 @@ if __name__ == "__main__":
     callejero = ca.carga_callejero()
     G = ca.carga_grafo()
     while True:
-        entrada = input('Pulse enter para comenzar un viaje. ([s] para salir)', end='\n\n')
+        while True:
+            entrada = input('Va a comenzar su viaje. ¿Cuántas paradas intermedias quiere hacer? ([enter] para 0 paradas), ([s] para salir)', end='\n\n')
+            if entrada.lower() == "s":
+                break
+            elif entrada == "":
+                entrada = "0"
+            if entrada.isdigit() and int(entrada) >= 0:
+                break
+            else:
+                print("Por favor, introduzca 's' para salir o un número entero positivo.")
         if entrada.lower() == "s":
             print('· Cerrando GPS...')
             break
+        stops = int(entrada)
+
+        
         origin_str = input('¿De dónde quiere salir?')
         #origin_str = 'Calle de la Princesa, 25'
         try:
@@ -247,8 +268,14 @@ if __name__ == "__main__":
             origin = closest_node(G, origin)
         except Exception as error:
             print(error)
+        caminos = []
+        for i in range(stops):
+            stop_str = input(f'Introduzca la parada nº{i + 1}: ')
+            stop = ca.busca_direccion(dest_str, callejero)
+            caminos.append(gp.camino_minimo(G,origin,stop))
+            origin = stop
 
-        dest_str = input('¿A dónde quiere ir? ')
+        dest_str = input('¿A dónde quiere ir? ')    
         #dest_str = 'Calle de Río Bullaque, 4'
         try:
             dest = ca.busca_direccion(dest_str, callejero)
@@ -258,11 +285,12 @@ if __name__ == "__main__":
 
         peso = choose()
         minimo = gp.camino_minimo(G, peso, origin, dest)
-        instrucc = instrucciones(G, minimo)
+        caminos.append(minimo)
+        instrucc = instrucciones(G, caminos)    # Hacer para múltiples caminos
 
         # Mostramos los resultados en formato mapa y texto
         show_instrucciones(instrucc)
-        dibuja_camino_ciudad(G, minimo)
+        dibuja_caminos_ciudad(G, minimo)
 
         # Datos de interés
         print(f'Número de cruces: {len(minimo)}')
