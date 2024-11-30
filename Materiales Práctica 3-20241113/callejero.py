@@ -62,7 +62,7 @@ def carga_callejero() -> pd.DataFrame:
     """
     try:
         print('· Leyendo el callejero de Madrid...')
-        callejero = pd.read_csv('direcciones.csv', encoding='latin1', sep=';')
+        callejero = pd.read_csv('GPS_Discreta_P3\Materiales Práctica 3-20241113\direcciones.csv', encoding='latin1', sep=';')
     except FileNotFoundError:
         raise FileNotFoundError("El fichero csv con las direcciones no existe")
     

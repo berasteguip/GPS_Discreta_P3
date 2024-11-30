@@ -102,7 +102,7 @@ def convert(n: int) -> str:
     else:
         return f"{round(n / 10) * 10} m"
 
-def instrucciones(G: nx.DiGraph, camino: List[int]) -> List[str]:
+def instrucciones(G: nx.DiGraph, caminos: List[List[int]]) -> List[str]:
     """
     Genera una lista de instrucciones de navegación basadas en un camino y un grafo.
 
@@ -115,46 +115,47 @@ def instrucciones(G: nx.DiGraph, camino: List[int]) -> List[str]:
                   giros, distancias y nombres de calles.
     """
     instrucc = []
-    edge_actual = G[camino[0]][camino[1]]
-    vector_actual = (G.nodes[camino[0]]['y'] - G.nodes[camino[1]]['y'], 
-                     G.nodes[camino[0]]['x'] - G.nodes[camino[1]]['x'])
-    nombre_actual = edge_actual['name']
-    distancia_acumulada = edge_actual['length']
-    instrucc.append(f'Sal por calle {nombre_actual}.')
-    for i in range(len(camino) - 2):
+    for camino in caminos:
+        edge_actual = G[camino[0]][camino[1]]
+        vector_actual = (G.nodes[camino[0]]['y'] - G.nodes[camino[1]]['y'], 
+                        G.nodes[camino[0]]['x'] - G.nodes[camino[1]]['x'])
+        nombre_actual = edge_actual['name']
+        distancia_acumulada = edge_actual['length']
+        instrucc.append(f'Sal por calle {nombre_actual}.')
+        for i in range(len(camino) - 2):
 
-        edge_next = G[camino[i + 1]][camino[i + 2]]
-        vector_next = (G.nodes[camino[i + 1]]['y'] - G.nodes[camino[i + 2]]['y'], 
-                            G.nodes[camino[i + 1]]['x'] - G.nodes[camino[i + 2]]['x'])
+            edge_next = G[camino[i + 1]][camino[i + 2]]
+            vector_next = (G.nodes[camino[i + 1]]['y'] - G.nodes[camino[i + 2]]['y'], 
+                                G.nodes[camino[i + 1]]['x'] - G.nodes[camino[i + 2]]['x'])
 
-        # Calcular el ángulo entre los dos vectores
-        dot_product = vector_actual[0] * vector_next[0] + vector_actual[1] * vector_next[1]
-        magnitude_actual = math.sqrt(vector_actual[0]**2 + vector_actual[1]**2)
-        magnitude_next = math.sqrt(vector_next[0]**2 + vector_next[1]**2)
-        angle = math.acos(dot_product / (magnitude_actual * magnitude_next)) * (180 / math.pi)  # Esto último para pasar a grados
+            # Calcular el ángulo entre los dos vectores
+            dot_product = vector_actual[0] * vector_next[0] + vector_actual[1] * vector_next[1]
+            magnitude_actual = math.sqrt(vector_actual[0]**2 + vector_actual[1]**2)
+            magnitude_next = math.sqrt(vector_next[0]**2 + vector_next[1]**2)
+            angle = math.acos(dot_product / (magnitude_actual * magnitude_next)) * (180 / math.pi)  # Esto último para pasar a grados
 
-        determinante = vector_actual[0] * vector_next[1] - vector_actual[1] * vector_next[0]
+            determinante = vector_actual[0] * vector_next[1] - vector_actual[1] * vector_next[0]
 
-        if angle < MARGIN:
-            giro = None
-        elif determinante < 0:
-            giro = 'izquierda'
-        elif determinante > 0:
-            giro = 'derecha'
-        # Si determinante = 0, ya habrá entrado en angle < MARGIN (los dos vectores son combinación lineal)
+            if angle < MARGIN:
+                giro = None
+            elif determinante < 0:
+                giro = 'izquierda'
+            elif determinante > 0:
+                giro = 'derecha'
+            # Si determinante = 0, ya habrá entrado en angle < MARGIN (los dos vectores son combinación lineal)
 
-        nombre_next = edge_next['name']
-        if nombre_actual != nombre_next:
-            if giro:
-                instrucc.append(f'En {distancia_acumulada} metros, gira a la {giro} en {nombre_next}')
+            nombre_next = edge_next['name']
+            if nombre_actual != nombre_next:
+                if giro:
+                    instrucc.append(f'En {distancia_acumulada} metros, gira a la {giro} en {nombre_next}')
+                else:
+                    instrucc.append(f'En {distancia_acumulada} metros, continúa por {nombre_next}')
+                distancia_acumulada = edge_next['length']
             else:
-                instrucc.append(f'En {distancia_acumulada} metros, continúa por {nombre_next}')
-            distancia_acumulada = edge_next['length']
-        else:
-            distancia_acumulada += edge_next['length']
-        
-        vector_actual = vector_next
-        nombre_actual = nombre_next
+                distancia_acumulada += edge_next['length']
+            
+            vector_actual = vector_next
+            nombre_actual = nombre_next
     return instrucc
 
 def show_instrucciones(instrucc: list[str]) -> None:
@@ -296,7 +297,7 @@ if __name__ == "__main__":
 
         # Mostramos los resultados en formato mapa y texto
         show_instrucciones(instrucc)
-        dibuja_caminos_ciudad(G, minimo)
+        dibuja_caminos_ciudad(G, caminos)
 
         # Datos de interés
         print(f'Número de cruces: {len(minimo)}')
