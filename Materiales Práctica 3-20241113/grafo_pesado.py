@@ -205,7 +205,7 @@ def kruskal(G:nx.Graph, peso:Callable[[nx.Graph,object,object],float])-> List[Tu
     """
     # Crear una lista de aristas con sus pesos
     aristas = [
-        (peso(G, u, v), u, v)
+        Prioridad(peso(G, u, v), (u, v))
         for u, v in G.edges
     ]
     aristas.sort()  # Ordenar las aristas por peso
@@ -232,7 +232,8 @@ def kruskal(G:nx.Graph, peso:Callable[[nx.Graph,object,object],float])-> List[Tu
 
     # Construir el MST
     mst = []
-    for peso_arista, u, v in aristas:
+    for arista in aristas:  # donde arista es un objeto Prioridad()
+        u, v = arista.valor
         if find(u) != find(v):  # Si no forman un ciclo
             union(u, v)
             mst.append((u, v))
