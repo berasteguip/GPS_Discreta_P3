@@ -244,9 +244,15 @@ if __name__ == "__main__":
     print('· Inicializando GPS...')
     callejero = ca.carga_callejero()
     G = ca.carga_grafo()
-    while True:
-        while True:
-            entrada = input('Va a comenzar su viaje. ¿Cuántas paradas intermedias quiere hacer? ([enter] para 0 paradas), ([s] para salir)', end='\n\n')
+
+
+
+    while True:     # Bucle de viajes completos
+
+        peso = choose()
+        
+        while True:     # Bucle de paradas
+            entrada = input('Va a comenzar su viaje. ¿Cuántas paradas intermedias quiere hacer? ([enter] para 0 paradas), ([s] para salir)\n')
             if entrada.lower() == "s":
                 break
             elif entrada == "":
@@ -271,11 +277,12 @@ if __name__ == "__main__":
         caminos = []
         for i in range(stops):
             stop_str = input(f'Introduzca la parada nº{i + 1}: ')
-            stop = ca.busca_direccion(dest_str, callejero)
-            caminos.append(gp.camino_minimo(G,origin,stop))
+            stop = ca.busca_direccion(stop_str, callejero)
+            stop = closest_node(G, stop)
+            caminos.append(gp.camino_minimo(G, peso, origin, stop))
             origin = stop
 
-        dest_str = input('¿A dónde quiere ir? ')    
+        dest_str = input('¿A dónde quiere ir? ')
         #dest_str = 'Calle de Río Bullaque, 4'
         try:
             dest = ca.busca_direccion(dest_str, callejero)
@@ -283,7 +290,6 @@ if __name__ == "__main__":
         except Exception as error:
             print(error)
 
-        peso = choose()
         minimo = gp.camino_minimo(G, peso, origin, dest)
         caminos.append(minimo)
         instrucc = instrucciones(G, caminos)    # Hacer para múltiples caminos
