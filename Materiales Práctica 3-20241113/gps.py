@@ -114,9 +114,11 @@ def instrucciones(G: nx.DiGraph, caminos: List[List[int]]) -> List[str]:
         List[str]: Lista de instrucciones de navegación en formato texto, incluyendo
                   giros, distancias y nombres de calles.
     """
+    total_time = 0
     instrucc = []
     for camino in caminos:
         edge_actual = G[camino[0]][camino[1]]
+        total_time += round(edge_actual['length'] / edge_actual['maxspeed'])
         vector_actual = (G.nodes[camino[0]]['y'] - G.nodes[camino[1]]['y'], 
                         G.nodes[camino[0]]['x'] - G.nodes[camino[1]]['x'])
         nombre_actual = edge_actual['name']
@@ -155,7 +157,12 @@ def instrucciones(G: nx.DiGraph, caminos: List[List[int]]) -> List[str]:
                 distancia_acumulada += edge_next['length']
             
             vector_actual = vector_next
+            edge_actual = edge_next
+            total_time += round(edge_actual['length'] / edge_actual['maxspeed'])
             nombre_actual = nombre_next
+
+    total_time = round(total_time / 60) # Pasar segundos a minutos
+    print(f'Tiempo estimado de la ruta: {total_time}')
     return instrucc
 
 def show_instrucciones(instrucc: list[str]) -> None:
