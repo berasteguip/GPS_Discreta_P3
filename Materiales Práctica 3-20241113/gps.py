@@ -262,43 +262,45 @@ if __name__ == "__main__":
                 break
             else:
                 print("Por favor, introduzca 's' para salir o un número entero positivo.")
-        if entrada.lower() == "s":
-            print('· Cerrando GPS...')
-            break
-        stops = int(entrada)
-
-        
-        origin_str = input('¿De dónde quiere salir?')
-        #origin_str = 'Calle de la Princesa, 25'
+                
         try:
+            if entrada.lower() == "s":
+                print('· Cerrando GPS...')
+                break
+            stops = int(entrada)
+
+            
+            origin_str = input('¿De dónde quiere salir?')
+            #origin_str = 'Calle de la Princesa, 25'
+            
             origin = ca.busca_direccion(origin_str, callejero)
             origin = closest_node(G, origin)
-        except Exception as error:
-            print(error)
-        caminos = []
-        for i in range(stops):
-            stop_str = input(f'Introduzca la parada nº{i + 1}: ')
-            stop = ca.busca_direccion(stop_str, callejero)
-            stop = closest_node(G, stop)
-            caminos.append(gp.camino_minimo(G, peso, origin, stop))
-            origin = stop
+    
+            caminos = []
+            for i in range(stops):
+                stop_str = input(f'Introduzca la parada nº{i + 1}: ')
+                stop = ca.busca_direccion(stop_str, callejero)
+                stop = closest_node(G, stop)
+                caminos.append(gp.camino_minimo(G, peso, origin, stop))
+                origin = stop
 
-        dest_str = input('¿A dónde quiere ir? ')
-        #dest_str = 'Calle de Río Bullaque, 4'
-        try:
+            dest_str = input('¿A dónde quiere ir? ')
+            #dest_str = 'Calle de Río Bullaque, 4'
+            
             dest = ca.busca_direccion(dest_str, callejero)
             dest = closest_node(G, dest)
+        
+
+            minimo = gp.camino_minimo(G, peso, origin, dest)
+            caminos.append(minimo)
+            instrucc = instrucciones(G, caminos)    # Hacer para múltiples caminos
+
+            # Mostramos los resultados en formato mapa y texto
+            show_instrucciones(instrucc)
+            dibuja_caminos_ciudad(G, caminos)
+
+            # Datos de interés
+            print(f'Número de cruces: {len(minimo)}')
+            print(f'Número de instrucciones: {len(instrucc)}')
         except Exception as error:
             print(error)
-
-        minimo = gp.camino_minimo(G, peso, origin, dest)
-        caminos.append(minimo)
-        instrucc = instrucciones(G, caminos)    # Hacer para múltiples caminos
-
-        # Mostramos los resultados en formato mapa y texto
-        show_instrucciones(instrucc)
-        dibuja_caminos_ciudad(G, caminos)
-
-        # Datos de interés
-        print(f'Número de cruces: {len(minimo)}')
-        print(f'Número de instrucciones: {len(instrucc)}')
