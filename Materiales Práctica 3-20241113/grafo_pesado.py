@@ -128,6 +128,8 @@ def camino_minimo(G:Union[nx.Graph, nx.DiGraph], peso:Union[Callable[[nx.Graph,o
     Raises:
         TypeError: Si origen o destino no son "hashable".
     """
+    if not nx.has_path(G, origen, destino):
+        raise nx.NetworkXNoPath(f"No existe un camino dos de la direcciones dadas")
     padres = dijkstra(G, peso, origen)
 
     camino = []
@@ -205,7 +207,7 @@ def kruskal(G:nx.Graph, peso:Callable[[nx.Graph,object,object],float])-> List[Tu
     """
     # Crear una lista de aristas con sus pesos
     aristas = [
-        (peso(G, u, v), u, v)
+        Prioridad(peso(G, u, v), (u, v))
         for u, v in G.edges
     ]
     aristas.sort()  # Ordenar las aristas por peso
@@ -232,7 +234,8 @@ def kruskal(G:nx.Graph, peso:Callable[[nx.Graph,object,object],float])-> List[Tu
 
     # Construir el MST
     mst = []
-    for peso_arista, u, v in aristas:
+    for arista in aristas:  # donde arista es un objeto Prioridad()
+        u, v = arista.valor
         if find(u) != find(v):  # Si no forman un ciclo
             union(u, v)
             mst.append((u, v))

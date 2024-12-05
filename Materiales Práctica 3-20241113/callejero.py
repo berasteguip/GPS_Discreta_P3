@@ -21,7 +21,7 @@ Funciones adicionales:
 from constants import *
 import pandas as pd
 import re
-import rapidfuzz as fuzz
+from rapidfuzz.fuzz import ratio
 from typing import Tuple
 import osmnx as ox
 import os
@@ -79,14 +79,6 @@ def carga_callejero() -> pd.DataFrame:
     callejero['NOMBRE_COMPLETO'] = callejero['VIA_CLASE'] + " " + callejero['VIA_PAR'] + callejero['VIA_NOMBRE'] + ", " + callejero['NUMERO'].astype(str)
     return callejero
 
-def calcular_similitud(entrada, valor_columna):
-    # Normaliza ambos textos (opcional, según tus datos)
-    entrada_normalizada = entrada.strip().lower()
-    valor_normalizado = valor_columna.strip().lower()
-    # Calcula la similitud con la métrica que prefieras (ejemplo: ratio simple)
-    return fuzz.ratio(entrada_normalizada, valor_normalizado)
-
-
 def distancia(calle_pedida: str, calle_iter: str) -> float:
     """
     Calcula la distancia de edición normalizada entre dos nombres de calles.
@@ -102,9 +94,25 @@ def distancia(calle_pedida: str, calle_iter: str) -> float:
     entrada_normalizada = calle_pedida.strip().lower()
     valor_normalizado = calle_iter.strip().lower()
     # Calcula la similitud con la métrica que prefieras (ejemplo: ratio simple)
-    return fuzz.ratio(entrada_normalizada, valor_normalizado)
+    return ratio(entrada_normalizada, valor_normalizado)
 
-def busca_direccion(direccion:str, callejero:pd.DataFrame) -> Tuple[float,float]:
+def capitalize_custom(word: str, particulas: pd.Series) -> str:
+    """
+    Capitaliza una palabra, excepto si es una partícula que debe ir en minúsculas.
+
+    Args:
+        word (str): La palabra a capitalizar.
+        callejero (pd.DataFrame): DataFrame con la información de las calles.
+
+    Returns:
+        str: La palabra capitalizada o en minúsculas si es una partícula.
+    """
+    if word.upper() in particulas:
+        return word.lower()
+    else:
+        return word.capitalize()
+
+def busca_direccion(direccion: str, callejero: pd.DataFrame) -> Tuple[float,float]:
     """ Función que busca una dirección, dada en el formato
         calle, numero
         en el DataFrame callejero de Madrid y devuelve el par (latitud, longitud) en grados de la
@@ -126,7 +134,7 @@ def busca_direccion(direccion:str, callejero:pd.DataFrame) -> Tuple[float,float]
     if direccion in callejero['NOMBRE_COMPLETO'].unique():
         lat = callejero.loc[callejero['NOMBRE_COMPLETO'] == direccion,'FLOAT_LATITUD'].values[0]
         long = callejero.loc[callejero['NOMBRE_COMPLETO'] == direccion,'FLOAT_LONGITUD'].values[0]
-        return lat, long
+
 
     else:
         callejero_sim = callejero.copy()
@@ -139,8 +147,12 @@ def busca_direccion(direccion:str, callejero:pd.DataFrame) -> Tuple[float,float]
         else:
             lat = closest['FLOAT_LATITUD']
             long = closest['FLOAT_LONGITUD']
-            return lat, long
+        direccion = closest['NOMBRE_COMPLETO']
 
+    particulas = callejero['VIA_PAR'].str.strip().unique()
+    direccion = ' '.join(capitalize_custom(word, particulas) for word in direccion.split(' '))
+    print(f'Dirección encontrada --> {direccion}')
+    return lat, long
 
 
 ############## Parte 4 ##############
